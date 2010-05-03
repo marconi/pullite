@@ -104,8 +104,8 @@ class Pullite(QtGui.QMainWindow):
       os.mkdir(Settings.download_path)
   
   def initFileFixer(self):
-  fixer = FileFixer()
-  fixer.start()
+      fixer = FileFixer()
+      fixer.start()
   
   def addDownloadAction(self):
     add_download = AddDownload(None)

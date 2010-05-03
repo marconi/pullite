@@ -1,9 +1,10 @@
+import os
 import logging
 from Queue import *
 
 class Settings(object):
   
-  download_path  = '/Volumes/backups/pyworkspace/pullite_cli/downloads'
+  download_path  = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'downloads')
   task_list      = Queue(0)
   finished_tasks = Queue(0)
   logging.basicConfig(level=logging.DEBUG)
