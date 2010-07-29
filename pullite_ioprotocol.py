@@ -8,7 +8,7 @@ class PulliteIOProtocol(basic.LineReceiver):
     
     def __init__(self):
         import optparse
-        self.parser = optparse.OptionParser("Invalid usage: download <remote file> [file name] [thread count]")
+        self.parser = optparse.OptionParser("Invalid usage: download <remote file> [-f|--filename file name] [-s|--split thread count]")
         self.parser.add_option("-f", "--filename", action="store", type="string", dest="fileName")
         self.parser.add_option("-s", "--split", action="store", type="int", dest="splitCount")
 
