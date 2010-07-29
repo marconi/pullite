@@ -12,7 +12,6 @@ class PulliteDownloader(client.HTTPClientFactory):
     """
     
     protocol = client.HTTPPageDownloader
-    value = None
     
     def __init__(self, url, fileOrName, workerId=0, position=0, method='GET',
                 postdata=None, headers=None, supportPartial=True, agent="Twisted client"):
@@ -27,6 +26,7 @@ class PulliteDownloader(client.HTTPClientFactory):
         client.HTTPClientFactory.__init__(self, url, method=method, postdata=postdata, headers=headers, agent=agent)
         self.deferred = defer.Deferred()
         self.waiting = 1
+        print "Started worker %d" % self.workerId
     
     def gotHeaders(self, headers):
         if headers.has_key('content-length'):
@@ -59,7 +59,7 @@ class PulliteDownloader(client.HTTPClientFactory):
                 if not self.file:
                     self.file = self.openFile(partialContent)
             except IOError:
-                #raise
+                # raise
                 self.deferred.errback(failure.Failure())
     
     def pagePart(self, data):
@@ -88,7 +88,7 @@ class PulliteDownloader(client.HTTPClientFactory):
         except IOError:
             self.deferred.errback(failure.Failure())
             return
-        self.deferred.callback(self.value)
+        self.deferred.callback(self.workerId)
     
     def startDownload(self):
         reactor.connectTCP(self.host, self.port, self)

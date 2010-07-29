@@ -39,8 +39,7 @@ class PulliteIOProtocol(basic.LineReceiver):
         
         if cmd == "download":
             self.initDownload(url, options.fileName, options.splitCount)
-        self.displayPrompt()
-        
+    
     def connectionLost(self, reason):
         if reactor.running: reactor.stop()
     
@@ -52,21 +51,24 @@ class PulliteIOProtocol(basic.LineReceiver):
         # use the one from the url
         if not fileName: fileName = os.path.basename(url)
         if not splitCount: splitCount = 3
+        self.splitCount = splitCount
 
         response = urllib2.urlopen(url)
-        
         if not response.info().has_key('Content-Length'):
             self.printLine("Unable to retrieve the file's length.") 
             return
 
         file_size = int(response.info()['Content-Length'])
         chunks = file_size/splitCount
-
+        print "Worker count : %s" % splitCount
+        
         for i in range(splitCount):
             offset = i*chunks if i == 0 else (i*chunks)+1
-            worker = PulliteDownloader(url, fileName, workerId=i, position=offset, headers={'range': 'bytes=%d-%d' % (offset, offset + chunks)})
+            worker = PulliteDownloader(url, fileName, workerId=(i+1), position=offset, headers={'range': 'bytes=%d-%d' % (offset, offset + chunks)})
             worker.deferred.addCallback(self.downloadComplete)
             worker.startDownload()
     
     def downloadComplete(self, data):
-        self.printLine("done!")
+        print "Worker %s done." % data
+        self.splitCount = self.splitCount - 1
+        if self.splitCount <= 0: self.printLine("Download complete!")
