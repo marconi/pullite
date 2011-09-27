@@ -1,28 +1,34 @@
 import sys
+import logging
 
-#custom classes
-from settings import *
-from file_fixer import *
-from file import *
+from file import File
+
+logging.basicConfig()
+log = logging.getLogger(__file__)
+
 
 if __name__ == "__main__":
+    try:
+        while True:
+            request = raw_input('>> ')
+            if len(request.strip()) == 0:
+                log.error('error', 'Invalid usage: pullite <remote file> [thread count]')
+            else:
+                tmp = request.split()
 
-  fixer = FileFixer()
-  fixer.start()
-  
-  try:
-    while True:
-      request = raw_input('>> ')
-      if len(request.strip()) == 0:
-        Settings.log('error', 'Invalid usage: pullite <remote file> [thread count]')
-      else:
-        request       = request.split()
-        if request[0] == 'quit': break
-        remote_file   = request[0]
-        threads_count = int(request[1]) if len(request) > 1 else 3
-        try:
-          File(remote_file, threads_count).download()
-        except ValueError:
-          Settings.log('error', 'Invalid file URL')
-  except KeyboardInterrupt:
-    Settings.finished_tasks.put('quit')
+                # check if user wan't to quit
+                if tmp[0] == 'quit':
+                    break
+
+                remote_file = tmp[0]
+                if len(tmp) == 1:
+                    workers_count = 3
+                else:
+                    workers_count = int(tmp[1])
+
+                try:
+                    File(remote_file, workers_count).download()
+                except ValueError, e:
+                    log.error(e)
+    except KeyboardInterrupt:
+        sys.exit(1)
