@@ -3,9 +3,11 @@ import urllib2
 import mimetypes
 from urlparse import *
 import gevent
+from gevent import monkey
 
 from conf import Config
 
+monkey.patch_socket()
 config = Config.get_config()
 
 
