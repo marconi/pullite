@@ -2,6 +2,9 @@ import os
 import urllib2
 import mimetypes
 from urlparse import *
+import math
+import time
+from datetime import datetime, timedelta
 import gevent
 from gevent import monkey
 
@@ -37,33 +40,35 @@ class File(object):
         self.workers_count = workers_count
         self.workers = []
         self.file_size = int(file_info['Content-Length'])
-        self.chunk_size = self.file_size / self.workers_count
+        self.chunk_size = int(math.ceil(self.file_size / self.workers_count))
+
+        print "File size: %s" % self.file_size
+        print "File chunks: %s" % self.chunk_size
+
         self.deploy_workers()
 
     def deploy_workers(self):
+        filesize = self.file_size
         for i in range(self.workers_count):
-            # calculate file pointer
-            pointer = i * self.chunk_size
+            # calculate file bytes block to read
+            start = i * self.chunk_size
+            end = start + (self.chunk_size - 1)
+
+            filesize -= self.chunk_size
+            print "Remaining: %s" % filesize
+
+            # if we're already at the end block,
+            # of the remaining bytes doesn't fit on a single block,
+            # lets just read all the remaining
+            if filesize <= self.chunk_size or \
+                ((end + filesize) <= self.chunk_size * 2):
+                end = self.file_size
 
             # spawn some greenlet workers
-            self.workers.append(gevent.spawn(self._download, pointer))
+            self.workers.append(gevent.spawn(self._download, start, end))
 
-    def download(self):
-        # let the workers do their job
-        gevent.joinall(self.workers)
-
-        # when all workers are done,
-        # merge all the gathered datas
-        for worker in self.workers:
-            start, end, data = worker.value
-            self.append_chunk(start, end, data)
-
-        print "DONE: %s" % self.remote_file
-
-    def _download(self, start):
+    def _download(self, start, end):
         request = urllib2.Request(self.remote_file)
-        end = start + (self.chunk_size - 1)
-
         request.add_header('Range', 'bytes=%d-%d' % (start, end))
         response = urllib2.urlopen(request)
 
@@ -71,25 +76,30 @@ class File(object):
 
         return start, end, response.read()
 
-    def append_chunk(self, pointer, end, data):
-        print "Appending %d bytes at %d to %d for %s" % (
-            len(data), int(pointer), int(end), self.remote_file)
-        handle = None
+    def download(self):
+        start_time = time.time()
 
-        # check if file already exist,
-        # grabe its handle
-        if os.path.exists(self.local_file):
-            handle = open(self.local_file, 'wb')
+        # let the workers do their job
+        gevent.joinall(self.workers)
 
-        # if we don't have a handle to the file
-        # yet, then this must have been a new file
-        # so lets create a new handle.
-        if not handle:
-            handle = open(self.local_file, 'wb')
+        # grab the handler to the file
+        handle = open(self.local_file, 'wb')
 
-        # moved to the position of the read data
-        # and write the newly downloaded chunks
-        if handle:
-            handle.seek(pointer)
+        # when all workers are done,
+        # merge all the gathered datas
+        for worker in self.workers:
+            start, end, data = worker.value
+
+            print "Appending %d bytes at %d to %d for %s" % (
+                len(data), int(start), int(end), self.remote_file)
+
+            # moved to the position of the read data
+            # and write the newly downloaded chunks
+            handle.seek(start)
             handle.write(data)
-            handle.close()
+        handle.close()
+
+        duration = int(time.time() - start_time)
+
+        print "DONE: %s" % self.remote_file
+        print "Duration: %s" % time.strftime("%H:%M:%S", time.gmtime(duration))
